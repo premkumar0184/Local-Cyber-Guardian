@@ -12,6 +12,8 @@ from security_guardian.events.normalizer import EventNormalizer
 from security_guardian.detection.correlator import EventCorrelator
 from security_guardian.ui.dashboard import SecurityDashboard
 from security_guardian.ai.local_llm import LocalLLMAnalyzer
+from security_guardian.ai.npu_llm import QualcommNPUAnalyzer
+import argparse
 
 def ai_analysis_task(incident, data_queue, ai_analyzer):
     print(f"Running AI analysis for {incident.incident_id}...")
@@ -58,7 +60,7 @@ def ai_analysis_task(incident, data_queue, ai_analyzer):
         "data": incident
     })
 
-def telemetry_loop(data_queue: queue.Queue):
+def telemetry_loop(data_queue: queue.Queue, ai_backend: str):
     proc_col = ProcessCollector()
     net_col = NetworkCollector()
     fs_col = FilesystemCollector()
@@ -69,9 +71,23 @@ def telemetry_loop(data_queue: queue.Queue):
     
     # Try to initialize AI
     ai_analyzer = None
+    ai_metadata = None
     try:
-        ai_analyzer = LocalLLMAnalyzer()
-        print("AI Analyzer initialized successfully.")
+        if ai_backend == "qualcomm_npu":
+            ai_analyzer = QualcommNPUAnalyzer()
+            ai_metadata = {
+                "engine": "Qualcomm Snapdragon NPU",
+                "model": "Qwen3-4B",
+                "status": "● Local / NPU"
+            }
+        else:
+            ai_analyzer = LocalLLMAnalyzer()
+            ai_metadata = {
+                "engine": "llama.cpp",
+                "model": "Llama-3.2-1B-Instruct",
+                "status": "● Local / CPU-GPU"
+            }
+        print(f"AI Analyzer ({ai_backend}) initialized successfully.")
     except Exception as e:
         print(f"AI Analyzer disabled: {e}")
     
@@ -113,7 +129,8 @@ def telemetry_loop(data_queue: queue.Queue):
                 "data": {
                     "processes": current_procs,
                     "connections": current_conns,
-                    "events": total_events
+                    "events": total_events,
+                    "ai_metadata": ai_metadata
                 }
             })
             
@@ -126,6 +143,7 @@ def telemetry_loop(data_queue: queue.Queue):
                 
                 # Kick off AI analysis if available
                 if ai_analyzer:
+                    inc.ai_metadata = ai_metadata
                     threading.Thread(target=ai_analysis_task, args=(inc, data_queue, ai_analyzer), daemon=True).start()
                     
         except Exception as e:
@@ -134,10 +152,15 @@ def telemetry_loop(data_queue: queue.Queue):
         time.sleep(2) # Polling interval
 
 def main():
+    parser = argparse.ArgumentParser(description="Local Cyber Guardian")
+    parser.add_argument("--ai-backend", choices=["local_llm", "qualcomm_npu"], default="local_llm", 
+                        help="Choose the local AI backend (default: local_llm)")
+    args = parser.parse_args()
+
     data_queue = queue.Queue()
     
     # Start telemetry in a background thread
-    t = threading.Thread(target=telemetry_loop, args=(data_queue,), daemon=True)
+    t = threading.Thread(target=telemetry_loop, args=(data_queue, args.ai_backend), daemon=True)
     t.start()
     
     # Start UI on the main thread

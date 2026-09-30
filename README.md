@@ -15,7 +15,7 @@ Modern endpoint security tools often rely on cloud telemetry, uploading process 
 - **Filesystem Integrity:** Uses event-driven monitoring (`watchdog`) to spot new executables dropped in vulnerable directories (e.g., `/tmp`).
 - **Persistence Monitoring:** Detects modifications to `.bashrc`, `crontabs`, and `systemd` configurations.
 - **Temporal Correlation Engine:** Links suspicious process execution with subsequent network or filesystem activity occurring in the same time window.
-- **Offline AI Analyst:** Leverages a lightweight 1B-parameter model (`Llama 3.2`) to output strict, structured JSON risk assessments.
+- **Offline AI Analyst:** Dual-backend support! Runs locally via a lightweight `Llama 3.2` model on CPU/GPU, or seamlessly offloads inference to the **Qualcomm Snapdragon NPU** using `GenieAPIService` (Qwen3-4B).
 - **Native Desktop Dashboard:** A modern UI displaying the system status, correlated kill-chains, and AI evidence/benign explanations.
 
 ## Architecture
@@ -66,7 +66,8 @@ Local-Cyber-Guardian/
     ├── main.py                      # Orchestrator and entry point
     ├── ai/
     │   ├── interface.py             # Abstract base class for AI Analyzers
-    │   └── local_llm.py             # Llama-cpp implementation
+    │   ├── local_llm.py             # Llama-cpp implementation (CPU/GPU)
+    │   └── npu_llm.py               # Qualcomm Snapdragon NPU implementation
     ├── collectors/                  # psutil and watchdog telemetry collectors
     ├── detection/                   # Correlation buffer and deterministic rules
     ├── events/                      # Dataclass models and normalization
@@ -75,9 +76,9 @@ Local-Cyber-Guardian/
 
 ## Prerequisites
 
-- **OS:** Linux (Tested on Arch Linux)
+- **OS:** Linux (Tested on Arch Linux) or **Windows 11 ARM64** (For Snapdragon NPU)
 - **Python:** 3.10+
-- **Hardware:** CPU or GPU capable of running a quantized 1B parameter LLM locally.
+- **Hardware:** CPU/GPU capable of running a 1B model, OR a **Qualcomm Snapdragon X-series** device.
 
 ## Installation
 
@@ -97,7 +98,7 @@ Local-Cyber-Guardian/
    pip install -r requirements.txt
    ```
 
-## Setup the Local LLM
+## Setup the Local LLM (Linux / CPU / GPU)
 
 The GGUF model file is intentionally excluded from Git. You must download it using the provided setup script. The script fetches the quantized `Llama-3.2-1B-Instruct-Q4_K_M.gguf` model from HuggingFace and places it in the `models/` directory.
 
@@ -105,12 +106,27 @@ The GGUF model file is intentionally excluded from Git. You must download it usi
 python download_model.py
 ```
 
+## Setup the Local LLM (Windows 11 ARM64 / Snapdragon NPU)
+
+To offload inference entirely to the NPU on a Snapdragon laptop:
+
+1. Install the **Qualcomm Genie SDK**.
+2. Deploy a Qualcomm-supported model (e.g., `Qwen3-4B` pre-converted for NPU).
+3. Start the **GenieAPIService**. By default, it exposes an OpenAI-compatible local API on `localhost:8910`. Ensure the service configuration has `"device": "npu"`.
+4. Ensure `python` and `requests` are installed in your Windows environment.
+
 ## Running the Application
 
-To start the telemetry engine, AI analyst, and desktop dashboard, run the main module:
+To start the telemetry engine, AI analyst, and desktop dashboard, run the main module.
 
+**For CPU/GPU (Default):**
 ```bash
 python -m security_guardian.main
+```
+
+**For Snapdragon NPU:**
+```bash
+python -m security_guardian.main --ai-backend qualcomm_npu
 ```
 
 > **Note:** The dashboard will launch in a new graphical window. Ensure you are running this in a desktop environment.
@@ -155,15 +171,12 @@ You will be prompted to select a scenario (1-9).
 }
 ```
 
-## Current Status & Future Work
+## Current Status
 
-**Current Status:**
 - CPU/GPU local inference using `llama.cpp` is complete and functional.
+- **Qualcomm Snapdragon NPU Integration** via `GenieAPIService` is complete, allowing drop-in replacement of the inference backend on Windows 11 ARM64.
 - Process, network, filesystem, and persistence telemetry are implemented.
 - Dashboard modernization, correlation engines, and strict JSON outputs are verified.
-
-**Future Work:**
-- **Qualcomm Snapdragon NPU Integration:** The `AIAnalyzer` interface was explicitly designed to be modular. Future updates will introduce a `QualcommNPUAnalyzer` class, allowing the inference workload to be offloaded entirely to a Snapdragon NPU for lower power consumption, without altering the telemetry or rules engines. *(Note: NPU support is NOT implemented in the current version).*
 
 ## License
 

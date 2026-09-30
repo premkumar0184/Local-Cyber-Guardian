@@ -52,9 +52,21 @@ class SecurityDashboard(ctk.CTk):
         self.event_label = ctk.CTkLabel(self.stats_card, text="Recent events: 0")
         self.event_label.pack(anchor="w", padx=20, pady=(2, 15))
         
+        # AI Backend Card
+        self.backend_card = ctk.CTkFrame(self.left_col, fg_color="#1a1a2e", corner_radius=10)
+        self.backend_card.grid(row=1, column=0, sticky="ew", pady=(0, 20))
+        
+        ctk.CTkLabel(self.backend_card, text="AI BACKEND", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(15, 5))
+        self.engine_label = ctk.CTkLabel(self.backend_card, text="ENGINE: -")
+        self.engine_label.pack(anchor="w", padx=20, pady=2)
+        self.model_label = ctk.CTkLabel(self.backend_card, text="MODEL: -")
+        self.model_label.pack(anchor="w", padx=20, pady=2)
+        self.status_backend_label = ctk.CTkLabel(self.backend_card, text="STATUS: -", text_color="#00ffcc")
+        self.status_backend_label.pack(anchor="w", padx=20, pady=(2, 15))
+        
         # Timeline Card
         self.timeline_card = ctk.CTkFrame(self.left_col, corner_radius=10)
-        self.timeline_card.grid(row=1, column=0, sticky="nsew")
+        self.timeline_card.grid(row=2, column=0, sticky="nsew")
         ctk.CTkLabel(self.timeline_card, text="INCIDENT TIMELINE", font=ctk.CTkFont(size=14, weight="bold")).pack(anchor="w", padx=15, pady=(15, 5))
         self.timeline_text = ctk.CTkTextbox(self.timeline_card, fg_color="#1a1a2e", text_color="#a9a9b3")
         self.timeline_text.pack(fill="both", expand=True, padx=15, pady=(0, 15))
@@ -118,6 +130,12 @@ class SecurityDashboard(ctk.CTk):
         self.proc_label.configure(text=f"Processes: {stats.get('processes', 0)}")
         self.conn_label.configure(text=f"Connections: {stats.get('connections', 0)}")
         self.event_label.configure(text=f"Recent events: {stats.get('events', 0)}")
+        
+        if "ai_metadata" in stats and stats["ai_metadata"]:
+            meta = stats["ai_metadata"]
+            self.engine_label.configure(text=f"ENGINE: {meta.get('engine', '')}")
+            self.model_label.configure(text=f"MODEL: {meta.get('model', '')}")
+            self.status_backend_label.configure(text=f"STATUS: {meta.get('status', '')}")
         
     def update_incident(self, incident: Any):
         self.current_incident = incident
