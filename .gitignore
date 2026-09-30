@@ -1,0 +1,26 @@
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local models
+models/*.gguf
+
+# IDE / OS files
+.vscode/
+.idea/
+*.swp
+.DS_Store
+
+# Logs / runtime data
+*.log
+*.pid
+
+# Local secrets / environment
+.env
+.env.*
